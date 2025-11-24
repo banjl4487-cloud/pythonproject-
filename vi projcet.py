@@ -119,3 +119,51 @@ final_mega_df.info()
 
 final_mega_df.to_csv('processed_tft_mega_data.csv', index=False)
 print("\n✅ 최종 메가 테이블 'processed_tft_mega_data.csv'로 저장 완료!")
+
+# --- [설정] 최종 데이터 저장 여부 플래그 ---
+# 이 플래그(Flag)를 통해 최종 결과물인 'final_mega_df'를 CSV 파일로 저장할지 여부를 제어합니다.
+# 개발 및 테스트 중에는 'False'로 설정하여 빠른 코드 실행 및 불필요한 파일 생성을 방지하고,
+# 최종 결과물 도출 및 공유 시에는 'True'로 설정하여 유연하게 활용할 수 있습니다.
+# 이는 단순히 주석 처리하는 것보다 코드의 의도를 명확히 하고, 유지보수 및 확장성을 높이는 방법입니다.
+SHOULD_SAVE_TO_FILE = False
+
+# --- 4단계: '바이' 챔피언 데이터만 필터링 ---
+# 'final_mega_df'에서 'champion_name'이 '바이'인 레코드들만 추출하여
+# 'df_vi_data'라는 새로운 데이터프레임에 저장합니다.
+# 이를 통해 '바이' 챔피언에 특화된 분석을 집중적으로 수행할 기반을 마련합니다.
+df_vi_data = final_mega_df[final_mega_df['champion_name'] == '바이']
+
+print("\n✅ '바이' 챔피언 데이터 필터링 완료!")
+print(df_vi_data.head()) # '바이' 데이터의 상위 5행을 확인합니다.
+print(f"\n총 '바이' 챔피언 데이터 수: {len(df_vi_data)}개") # 필터링된 데이터의 총 개수를 확인합니다.
+
+# DEFENSIVE_VI_ITEMS: TFT 시즌 3 메타에서 바이 챔피언의 방어적 역할 수행에 핵심적인 아이템 목록입니다.
+# 각 아이템은 단순히 방어력, 마법 저항력 증가 외에도 체력, 생존기, 아군 보호 등 탱커 챔피언의 역할을
+# 강화하는 기능들을 고려하여 선정되었습니다.
+DEFENSIVE_VI_ITEMS = [
+    '수호천사',                 # 생존력 증대에 직접 기여하는 아이템 (부활)
+    '거인의 결의',               # 전투 지속력(탱킹)을 높이는 스탯 증가 아이템
+    '덤불조끼',                 # 방어력 및 치명타 피해 감소를 제공하는 탱커 핵심 아이템
+    '용의 발톱',                 # 마법 저항력 및 마법 피해 감소를 위한 핵심 아이템
+    '강철의 솔라리 펜던트',     # 주변 아군 보호막 제공을 통한 아군 생존력 향상 (탱커가 주로 사용)
+    '얼어붙은 심장',             # 방어력 제공과 함께 적의 공격 속도를 감소시켜 탱킹력 증대
+    '구원',                     # 아군 체력 회복을 통한 전투 유지력 기여 (탱커의 아군 지원 아이템)
+    '워모그의 갑옷'             # 높은 체력 재생으로 장기적인 생존력을 확보하는 핵심 탱킹 아이템
+]
+
+print(f"\n✅ 분석을 위한 바이 방어 아이템 목록 정의 완료 (총 {len(DEFENSIVE_VI_ITEMS)}개):")
+for item in DEFENSIVE_VI_ITEMS:
+    print(f"- {item}")
+
+# df_vi_data에 'has_defensive_item' 컬럼을 추가합니다.
+# 'item_name_item_info' 컬럼의 아이템 이름이 DEFENSIVE_VI_ITEMS 리스트에 포함되는지 확인하여 True/False를 반환합니다.
+# 이를 통해 방어 아이템 장착 여부를 명확하게 구분할 수 있습니다.
+df_vi_data['has_defensive_item'] = df_vi_data['item_name_item_info'].isin(DEFENSIVE_VI_ITEMS)
+
+print("\n✅ 'has_defensive_item' 컬럼 추가 완료:")
+# 새로 추가된 컬럼과 함께 주요 관련 컬럼들을 출력하여 변화를 확인합니다.
+print(df_vi_data[['champion_name', 'item_name_item_info', 'has_defensive_item', 'lastRound']].head(10))
+
+# 각 그룹의 데이터 수를 확인하여 그룹 분류의 현황을 파악합니다.
+print(f"\n- 방어 아이템을 장착한 바이 게임 수: {df_vi_data['has_defensive_item'].sum()}회")
+print(f"- 방어 아이템을 장착하지 않은 바이 게임 수: {len(df_vi_data) - df_vi_data['has_defensive_item'].sum()}회")
