@@ -167,3 +167,7 @@ print(df_vi_data[['champion_name', 'item_name_item_info', 'has_defensive_item', 
 # 각 그룹의 데이터 수를 확인하여 그룹 분류의 현황을 파악합니다.
 print(f"\n- 방어 아이템을 장착한 바이 게임 수: {df_vi_data['has_defensive_item'].sum()}회")
 print(f"- 방어 아이템을 장착하지 않은 바이 게임 수: {len(df_vi_data) - df_vi_data['has_defensive_item'].sum()}회")
+# 최종 병합된 데이터프레임을 엑셀 파일로 저장
+merged_with_item_df.to_excel('TFT_Vi_Survival_Analysis_merged.xlsx', index=False)
+
+print("TFT_Vi_Survival_Analysis_merged.xlsx 파일이 성공적으로 저장되었습니다! 😉")
