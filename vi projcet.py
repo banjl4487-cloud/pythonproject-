@@ -142,7 +142,6 @@ if 'champion' in df_champions_exploded.columns:
 # Series의 리스트들을 하나의 평평한 리스트로 변환 (Flattening)
 # 이 과정에서 빈 리스트는 제외합니다.
 flattened_champions_list = []
-flattened_champions_list = []
 for sublist in all_champions_parsed_series.tolist(): # <-- 함수를 적용한 결과 변수 이름과 통일!
     if sublist:
         flattened_champions_list.extend(sublist)
