@@ -361,12 +361,40 @@ if not most_common_vi_items_counts.empty:
     print(f"{'순위':<4} | {'아이템 이름':<25} | {'장착 횟수':<10} | {'방어 아이템 여부':<15}")
     print("-----------------------------------------------------------------")
 
+    defensive_count = 0
+    non_defensive_count = 0
+
+    top_items_for_summary = most_common_vi_items_counts.head(TOP_N)  # TOP_N 아이템만 요약용으로 가져옴
+
+    for rank, (item_name, count) in enumerate(top_items_for_summary.items()):
+        is_defensive = item_name in defensive_completed_items_list
+        defensive_status = '✅ 방템' if is_defensive else '❌ 비방템'
+        print(f"{rank + 1:<4} | {item_name:<25} | {count:<10} | {defensive_status:<15}")
+
+        if is_defensive:
+            defensive_count += 1
+        else:
+            non_defensive_count += 1
+    print("-----------------------------------------------------------------")
+
     # 상위 N개 아이템의 순위를 출력한다.
     for rank, (item_name, count) in enumerate(most_common_vi_items_counts.head(TOP_N).items()):
         is_defensive = item_name in defensive_completed_items_list
         defensive_status = '✅ 방템' if is_defensive else '❌ 비방템'
         print(f"{rank + 1:<4} | {item_name:<25} | {count:<10} | {defensive_status:<15}")
     print("-----------------------------------------------------------------")
+
+    total_top_n_items = TOP_N
+    if total_top_n_items > 0:
+        defensive_percentage = (defensive_count / total_top_n_items) * 100
+        offensive_percentage = (non_defensive_count / total_top_n_items) * 100
+        print(f"\n[최종 통찰] VI가 가장 많이 장착한 상위 {TOP_N}개 아이템 중:")
+        print(f"  - 방어 아이템 비율: {defensive_percentage:.2f}% ({defensive_count}개)")
+        print(f"  - 비방어 아이템 비율: {offensive_percentage:.2f}% ({non_defensive_count}개)")
+    else:
+        print(f"\n[최종 통찰] 상위 {TOP_N}개 아이템을 분석할 데이터가 없습니다.")
+
+
 
 else:
     print("\n--- [분석 결과] VI가 장착한 완성 아이템 데이터를 찾을 수 없습니다. ---")
