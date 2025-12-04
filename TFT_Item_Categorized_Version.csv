@@ -7,7 +7,7 @@ id,name,item_type,is_defensive
 6,Negatron Cloak,component,False
 7,Giant's Belt,component,False
 8,Spatula,component,False
-9,Sparring Gloves,completed,False
+9,Sparring Gloves,component,False
 11,Deathblade,completed,False
 12,Giant Slayer,completed,False
 13,Hextech Gunblade,completed,False
@@ -53,3 +53,4 @@ id,name,item_type,is_defensive
 88,Force of Nature,completed,False
 89,Dark Star's Heart,completed,False
 99,Thief's Gloves,completed,False
+
