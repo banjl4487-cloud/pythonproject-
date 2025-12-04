@@ -76,7 +76,7 @@ def parse_vi_items(row: pd.Series) -> list:
               (예: [{'gameId': 'game_abc', 'vi_item_id': 27}])
               'VI' 챔피언이 없거나 아이템 정보 없음 시 빈 리스트를 반환합니다.
     """
-    vi_items_in_row = []
+    vi_item_ids_list = []
     TARGET_CHAMPION_NAME = 'VI'  # 찾을 챔피언 이름
 
     if 'champion' not in row or not row['champion']:
@@ -109,10 +109,10 @@ def parse_vi_items(row: pd.Series) -> list:
     if found_vi_in_this_game:
         vi_champion_detail = parsed_champion_data[vi_original_name]
         if 'items' in vi_champion_detail and isinstance(vi_champion_detail['items'], list):
-            for item_id in vi_champion_detail['items']:
-                vi_items_in_row.append({'gameId': current_game_id, 'vi_item_id': item_id})
+         for item_id in vi_champion_detail['items']:
+                   vi_item_ids_list.append(item_id)
 
-    return vi_items_in_row
+    return vi_item_ids_list
 
 
 # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
@@ -284,15 +284,6 @@ print("✅ 'VI' 챔피언만을 위한 최종 데이터프레임 (아이템 제�
 # print(final_vi_df_no_items.info())
 
 
-# --- 디버깅용으로 df_match의 상태를 다시 확인하자! ---
-print("--- [디버그] df_match 컬럼 목록 ---")
-print(df_match.columns.tolist())
-print("\n--- [디버그] df_match 상위 5개 행 ---")
-print(df_match.head())
-print("\n--- [디버그] df_match['champion'] 컬럼 첫 3개 내용 (VI 챔피언이 있는지 잘 봐!) ---")
-for i in range(min(3, len(df_match))):
-    print(f"Row {i} champion data: {df_match['champion'].iloc[i]}")
-print("-" * 50)
 
 
 
@@ -307,100 +298,77 @@ print("-" * 50)
 # ----------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------
 
-print("--- final_vi_df_no_items에 원본 'champion' 컬럼 병합 시작 ---")
-# df_match에서 gameId와 champion 컬럼만 선택
-champion_data_from_match = df_match[['gameId', 'champion']].copy()
-# final_vi_df_no_items에 champion 컬럼을 left merge 한다.
-df_final_vi_with_raw_champion = pd.merge(final_vi_df_no_items, champion_data_from_match, on='gameId', how='left')
-print("--- final_vi_df_no_items에 원본 'champion' 컬럼 병합 완료 ---")
+# --------------------------------------------------------------------------
+# --- 데이터 로드 및 초기 설정 ---
+categorized_item_filename = 'TFT_Item_Categorized_Version.csv'
+df_categorized_items = pd.read_csv(categorized_item_filename)
+ACTUAL_ITEM_NAME_COLUMN = 'name'
 
-print("\n--- 'champion_x' (VI 이름) 및 'champion_y' (원본 챔피언 JSON) 컬럼 확인 (head) ---")
-# 이제 'champion' 대신 'champion_x'와 'champion_y'를 사용한다!
-print(df_final_vi_with_raw_champion[['gameId', 'champion_x', 'champion_y']].head())
-print("-" * 50)
+# --------------------------------------------------------------------------
+# --- 필요한 리스트 및 매핑 동적 생성 ---
+completed_items_list = df_categorized_items[
+    df_categorized_items['item_type'] == 'completed'
+    ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
-# 1단계: df_match에 parse_vi_items 함수를 적용하여 'vi_extracted_items_data' 컬럼 생성
-#        이제 'df_match'는 원본 'champion' 컬럼을 가지고 있으므로 제대로 작동해야 한다!
-# ----------------------------------------------------------------------------------------------------
-print("--- df_match에서 'VI' 챔피언의 아이템 ID 추출 시작 (원본 df_match에 적용) ---")
-df_match['vi_extracted_items_data'] = df_match.apply(parse_vi_items, axis=1)
-print("--- df_match에서 'VI' 챔피언의 아이템 ID 추출 완료 ---")
+defensive_completed_items_list = df_categorized_items[
+    (df_categorized_items['item_type'] == 'completed') &
+    (df_categorized_items['is_defensive'] == True)
+    ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
-# 추출 결과 확인
-print("\n--- [디버그] 'vi_extracted_items_data' 결과 (상위 10개) ---")
-print(df_match[['gameId', 'vi_extracted_items_data']].head(10))
-# vi_extracted_items_data가 빈 리스트가 아닌 행이 몇 개나 되는지 확인!
-print(f"vi_extracted_items_data가 비어있지 않은 행 수: {df_match['vi_extracted_items_data'].apply(len).astype(bool).sum()} / {len(df_match)}")
-print("-" * 50)
+item_id_to_name_map = df_categorized_items.set_index('id')[ACTUAL_ITEM_NAME_COLUMN].to_dict()
+
+# --------------------------------------------------------------------------
+# --- VI 챔피언 매치 데이터 로드 ---
+match_data_filename = 'TFT_Challenger_MatchData.csv'  # ⭐⭐ 이 파일 이름을 네 파일에 맞춰줘! ⭐⭐
+df_match = pd.read_csv(match_data_filename)
 
 
-# ----------------------------------------------------------------------------------------------------
-# ✨✨✨ 이제 이어서 네가 원했던 explode & merge & groupby 파이프라인으로 간다! ✨✨✨
-#   - 이 파이프라인의 핵심은 df_match에서 'VI'가 있는 게임만 따로 뽑아내는 것이 아니라,
-#     df_match 전체에 적용하고, 아이템 정보가 있는 행만 남겨 다음 단계를 진행하는 것이다.
-# ----------------------------------------------------------------------------------------------------
 
-# 2단계: 'vi_extracted_items_data' 컬럼을 explode하여 각 아이템 딕셔너리를 개별 행으로 펼치기
-print("--- 'vi_extracted_items_data' explode 시작 ---")
-df_vi_items_exploded = df_match.explode('vi_extracted_items_data')
+# --------------------------------------------------------------------------
+# --- VI 아이템 데이터 처리 및 분석 ---
 
-# explode 후 NaN이 된 값들(VI가 없거나 아이템이 없었던 행)을 제거하여 실제 아이템 정보를 가진 행만 남김
-df_vi_items_exploded.dropna(subset=['vi_extracted_items_data'], inplace=True)
-print("--- 'vi_extracted_items_data' explode 완료 ---")
-
-
-# 3단계: explode된 딕셔너리에서 'vi_item_id' 및 'gameId' 컬럼 추출
-print("--- explode된 데이터에서 'vi_item_id' 및 'gameId' 추출 시작 ---")
-df_vi_items_exploded['item_gameId'] = df_vi_items_exploded['vi_extracted_items_data'].str.get('gameId')
-df_vi_items_exploded['vi_item_id'] = df_vi_items_exploded['vi_extracted_items_data'].str.get('vi_item_id')
-print("--- explode된 데이터에서 'vi_item_id' 및 'gameId' 추출 완료 ---")
-
-
-# 4단계: df_item과 pd.merge() 수행하여 아이템 이름 가져오기
-print("--- df_item과 merge 시작 (아이템 이름 가져오기) ---")
-df_vi_items_with_names = pd.merge(
-    df_vi_items_exploded,
-    df_item[['id', 'name']], # df_item에서 'id'와 'name'만 가져온다.
-    left_on='vi_item_id',
-    right_on='id',
-    how='left'
+df_match['vi_extracted_item_ids'] = df_match.apply(parse_vi_items, axis=1)
+df_match['vi_extracted_items_data'] = df_match['vi_extracted_item_ids'].apply(
+    lambda ids: [item_id_to_name_map.get(item_id, None) for item_id in ids if
+                 item_id_to_name_map.get(item_id, None) is not None]
 )
-df_vi_items_with_names.drop(columns=['id'], inplace=True)
-print("--- df_item과 merge 완료 ---")
 
+df_match['vi_completed_items_only'] = df_match['vi_extracted_items_data'].apply(
+    lambda items: [item for item in items if isinstance(items, list) and item in completed_items_list]
+)
 
-# --- 5단계: 아이템 이름 요약 (gameId 별로 다시 리스트로 묶기) ---
-print("--- 아이템 이름 리스트 요약 시작 ---")
+# VI가 완성 아이템을 하나라도 장착한 경기만 필터링
+df_vi_filtered = df_match[df_match['vi_completed_items_only'].apply(len) > 0].copy()
 
-# (핵심 수정!) 그룹화 기준 컬럼을 'gameId' (원본)으로 사용!
-grouped_item_names = df_vi_items_with_names.groupby('gameId')['name'].apply( # <--- 'item_gameId' 대신 'gameId' 사용!
-    lambda x: x.dropna().tolist() # NaN (아이템 없음)은 리스트에서 제외
-).reset_index()
+# 모든 완성 아이템 리스트를 하나로 합치고 빈도를 계산
+all_vi_completed_items = [item for sublist in df_vi_filtered['vi_completed_items_only'] if isinstance(sublist, list) for
+                          item in sublist]
+most_common_vi_items_counts = pd.Series(all_vi_completed_items).value_counts()
 
-grouped_item_names.rename(columns={'name': 'vi_all_item_names_list'}, inplace=True) # 컬럼명은 그대로 둔다.
-print("--- 아이템 이름 리스트 요약 완료 ---")
+# 가장 많이 장착된 완성 아이템 확인
+if not most_common_vi_items_counts.empty:
+    top_1_item_name = most_common_vi_items_counts.index[0]
+    top_1_item_count = most_common_vi_items_counts.iloc[0]
 
+    is_top_item_defensive = top_1_item_name in defensive_completed_items_list
 
-# --- 6단계: final_vi_df_no_items에 최종 아이템 이름 리스트 병합 ---
-print("--- final_vi_df_no_items에 아이템 이름 정보 병합 시작 ---")
-# df_final_vi_with_raw_champion에 병합하는 것이 목표.
-final_vi_df = pd.merge(df_final_vi_with_raw_champion, grouped_item_names, on='gameId', how='left') # on='gameId'로 merge!
-print("--- final_vi_df_no_items에 아이템 이름 정보 병합 완료 ---")
+    # ⭐ 최종 결과 출력 ⭐
+TOP_N = 5  # 네가 원하는 순위 개수를 여기에 설정!
 
-# 병합 후 NaN 값 처리 (VI가 아이템을 하나도 착용하지 않은 게임의 경우)
-final_vi_df['vi_all_item_names_list'] = final_vi_df['vi_all_item_names_list'].apply(lambda x: x if isinstance(x, list) else [])
+if not most_common_vi_items_counts.empty:
+    print(f"\n--- [분석 결과] VI가 가장 많이 장착한 완성 아이템 TOP {TOP_N} ---")
+    print("-----------------------------------------------------------------")
+    print(f"{'순위':<4} | {'아이템 이름':<25} | {'장착 횟수':<10} | {'방어 아이템 여부':<15}")
+    print("-----------------------------------------------------------------")
 
-# --- 최종 결과 확인 ---
-print("\n--- 최종 final_vi_df (아이템 이름 통합 완료) ---")
-# 이제 vi_all_item_names_list에 데이터가 채워져 있어야 한다!
-print(final_vi_df[['gameId', 'champion_x', 'champion_y', 'vi_all_item_names_list']].head())
-print("-" * 50)
+    # 상위 N개 아이템의 순위를 출력한다.
+    for rank, (item_name, count) in enumerate(most_common_vi_items_counts.head(TOP_N).items()):
+        is_defensive = item_name in defensive_completed_items_list
+        defensive_status = '✅ 방템' if is_defensive else '❌ 비방템'
+        print(f"{rank + 1:<4} | {item_name:<25} | {count:<10} | {defensive_status:<15}")
+    print("-----------------------------------------------------------------")
 
-# --- [분석] VI가 가장 많이 장착한 아이템 TOP 10 (이건 잘 나왔으니 그대로 두면 됨) ---
-most_frequent_vi_items = df_vi_items_with_names['name'].dropna().value_counts().head(10)
-print("\n--- [분석] VI가 가장 많이 장착한 아이템 TOP 10 ---")
-print(most_frequent_vi_items)
-print("-" * 50)
-
-
+else:
+    print("\n--- [분석 결과] VI가 장착한 완성 아이템 데이터를 찾을 수 없습니다. ---")
+    print("-" * 50)
 
