@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 import ast # json.loads 실패 시 문자열 딕셔너리를 파싱하기 위함
-
+import numpy as np
 # --- 0단계: 모든 데이터 불러오기 (파일 경로 확인) ---
 # 네가 저장한 .csv 파일들의 정확한 경로와 파일명을 입력
 # 예시: 'C:/PythonProject/TFT_Challenger_MatchData.csv'
@@ -422,3 +422,60 @@ else:
     print("\n--- [분석 결과] VI가 장착한 완성 아이템 데이터를 찾을 수 없습니다. ---")
     print("-" * 50)
 
+data = {
+    '순위': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    '아이템 이름': [
+        'Ionic Spark', 'Frozen Heart', 'Redemption', 'Zephyr', 'Thief\'s Gloves',
+        'Force of Nature', 'Locket of the Iron Solari', 'Morellonomicon',
+        'Bramble Vest', 'Dragon\'s Claw'
+    ],
+    '장착 횟수': [5178, 2985, 1893, 1844, 1469, 1157, 880, 849, 721, 644],
+    '방어 아이템 여부': ['비방템', '방템', '방템', '비방템', '비방템', '비방템', '방템', '비방템', '방템', '비방템']
+}
+
+# 데이터프레임 생성
+df_vi_items = pd.DataFrame(data)
+
+# 방어 아이템 개수와 비율 계산
+total = len(df_vi_items)
+defense_count = sum(df_vi_items['방어 아이템 여부'] == '방템')
+defense_ratio = defense_count / total * 100
+non_defense_count = total - defense_count
+non_defense_ratio = 100 - defense_ratio
+
+# 최종 통찰 데이터를 담을 새로운 데이터프레임 행 생성
+# 기존 df의 컬럼 구조를 따라가되, 빈 값은 NaN으로 채운다.
+summary_rows = pd.DataFrame([
+    {
+        '순위': np.nan, # 순위 컬럼은 비워둠 (NaN)
+        '아이템 이름': "[최종 통찰] VI가 가장 많이 장착한 상위 10개 아이템 중:",
+        '장착 횟수': np.nan,
+        '방어 아이템 여부': np.nan
+    },
+    {
+        '순위': np.nan,
+        '아이템 이름': f"  - 방어 아이템 비율: {defense_ratio:.2f}%",
+        '장착 횟수': f"({defense_count}개)", # 숫자 대신 문자열로 저장하여 포맷 유지
+        '방어 아이템 여부': np.nan
+    },
+    {
+        '순위': np.nan,
+        '아이템 이름': f"  - 비방어 아이템 비율: {non_defense_ratio:.2f}%",
+        '장착 횟수': f"({non_defense_count}개)", # 숫자 대신 문자열로 저장하여 포맷 유지
+        '방어 아이템 여부': np.nan
+    }
+])
+
+# 아이템 데이터프레임과 최종 통찰 데이터프레임을 합치기
+# ignore_index=True로 새롭게 인덱스 재설정
+df_final_output = pd.concat([df_vi_items, summary_rows], ignore_index=True)
+
+# 통합된 데이터프레임을 CSV 파일로 저장
+csv_filename = 'vi_top10_items_with_summary.csv'
+df_final_output.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+
+print(f"모든 데이터와 최종 통찰이 '{csv_filename}'에 성공적으로 저장되었습니다.")
+
+# 화면 출력 (확인용)
+print("\n--- CSV 파일에 저장된 최종 내용 ---")
+print(df_final_output.to_string(index=False)) # 콘솔에서 전체 내용을 확인
