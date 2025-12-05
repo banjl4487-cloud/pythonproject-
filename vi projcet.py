@@ -34,8 +34,10 @@ except Exception as e:
 def parse_champions_from_match_data(row: pd.Series) -> list:
     champions_extracted = []
 
+
     if 'champion' not in row or not row['champion']:
         return []
+
 
     # 데이터를 문자열에서 Python 객체로 파싱 시도
     parsed_champion_data = None
@@ -309,19 +311,13 @@ completed_items_list = df_item[
     ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
 defensive_completed_items_list = df_item[
-    (df_item['item_type'] == 'completed')
+    (df_item['item_type'] == 'completed') &
     (df_item['is_defensive'] == True)
     ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
 item_id_to_name_map = df_item.set_index('id')[ACTUAL_ITEM_NAME_COLUMN].to_dict()
 
 # --------------------------------------------------------------------------
-# --- VI 챔피언 매치 데이터 로드 ---
-match_data_filename = 'TFT_Challenger_MatchData.csv'  # ⭐⭐ 이 파일 이름을 네 파일에 맞춰줘! ⭐⭐
-df_match = pd.read_csv(match_data_filename)
-
-
-
 # --------------------------------------------------------------------------
 # --- VI 아이템 데이터 처리 및 분석 ---
 
@@ -350,6 +346,40 @@ if not most_common_vi_items_counts.empty:
 
     is_top_item_defensive = top_1_item_name in defensive_completed_items_list
 
+    print(f"\n--- [분석 결과] VI가 가장 많이 장착한 완성 아이템 TOP {1} ---")
+    print("-----------------------------------------------------------------")
+    print(f"{'순위':<4} | {'아이템 이름':<25} | {'장착 횟수':<10} | {'방어 아이템 여부':<15}")
+    print("-----------------------------------------------------------------")
+
+    defensive_count = 0
+    non_defensive_count = 0
+
+    top_items_for_summary = most_common_vi_items_counts.head(1)
+
+    for rank, (item_name, count) in enumerate(top_items_for_summary.items()):
+        is_defensive_status_in_loop = item_name in defensive_completed_items_list  # 루프 안에서 사용하는 변수명
+        defensive_status_str = '✅ 방템' if is_defensive_status_in_loop else '❌ 비방템'
+        print(f"{rank + 1:<4} | {item_name:<25} | {count:<10} | {defensive_status_str:<15}")
+
+        if is_defensive_status_in_loop:
+            defensive_count += 1
+        else:
+            non_defensive_count += 1
+    print("-----------------------------------------------------------------")
+
+
+    print("\n--- [추가 분석] VI의 최애 아이템 심층 통찰 ---")
+    if is_top_item_defensive:
+        print(f"  ✨ 가장 많이 장착된 아이템은 '{top_1_item_name}' (총 {top_1_item_count}회) 이며,")
+        print(f"     이는 VI의 '탱커/브루저' 역할에 어울리는 '✅ 방어 아이템'입니다.")
+        print(f"     플레이어들이 VI를 견고한 챔피언으로 활용하는 경향을 보입니다.")
+    else:
+        print(f"  🚨 가장 많이 장착된 아이템은 '{top_1_item_name}' (총 {top_1_item_count}회) 이며,")
+        print(f"     이는 VI의 역할과는 다소 거리가 있는 '❌ 비방어 아이템'입니다.")
+        print(f"     그래서 아이템 TOP1O등 '추가적인 분석'을 통해")
+        print(f"     이 선택이 효과적인 전략인지 탐색해볼 필요가 있습니다.")
+    print("-----------------------------------------------------------------")
+
     # ⭐ 최종 결과 출력 ⭐
 TOP_N = 10  # 네가 원하는 순위 개수를 여기에 설정!
 
@@ -375,12 +405,6 @@ if not most_common_vi_items_counts.empty:
             non_defensive_count += 1
     print("-----------------------------------------------------------------")
 
-    # 상위 N개 아이템의 순위를 출력한다.
-    for rank, (item_name, count) in enumerate(most_common_vi_items_counts.head(TOP_N).items()):
-        is_defensive = item_name in defensive_completed_items_list
-        defensive_status = '✅ 방템' if is_defensive else '❌ 비방템'
-        print(f"{rank + 1:<4} | {item_name:<25} | {count:<10} | {defensive_status:<15}")
-    print("-----------------------------------------------------------------")
 
     total_top_n_items = TOP_N
     if total_top_n_items > 0:
