@@ -6,7 +6,7 @@ import ast # json.loads 실패 시 문자열 딕셔너리를 파싱하기 위함
 # 네가 저장한 .csv 파일들의 정확한 경로와 파일명을 입력
 # 예시: 'C:/PythonProject/TFT_Challenger_MatchData.csv'
 file_path_match = 'TFT_Challenger_MatchData.csv'
-file_path_item = 'TFT_Item_CurrentVersion.csv'
+file_path_item = 'TFT_Item_Categorized_Version.csv'
 file_path_champion_info = 'TFT_Champion_CurrentVersion.csv' # 이 파일도 '.csv'겠지
 
 
@@ -299,23 +299,21 @@ print("✅ 'VI' 챔피언만을 위한 최종 데이터프레임 (아이템 제�
 # ----------------------------------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------
-# --- 데이터 로드 및 초기 설정 ---
-categorized_item_filename = 'TFT_Item_Categorized_Version.csv'
-df_categorized_items = pd.read_csv(categorized_item_filename)
+# --- 데이터 로드 및 초기 설정 --
 ACTUAL_ITEM_NAME_COLUMN = 'name'
 
 # --------------------------------------------------------------------------
 # --- 필요한 리스트 및 매핑 동적 생성 ---
-completed_items_list = df_categorized_items[
-    df_categorized_items['item_type'] == 'completed'
+completed_items_list = df_item[
+    df_item['item_type'] == 'completed'
     ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
-defensive_completed_items_list = df_categorized_items[
-    (df_categorized_items['item_type'] == 'completed') &
-    (df_categorized_items['is_defensive'] == True)
+defensive_completed_items_list = df_item[
+    (df_item['item_type'] == 'completed')
+    (df_item['is_defensive'] == True)
     ][ACTUAL_ITEM_NAME_COLUMN].tolist()
 
-item_id_to_name_map = df_categorized_items.set_index('id')[ACTUAL_ITEM_NAME_COLUMN].to_dict()
+item_id_to_name_map = df_item.set_index('id')[ACTUAL_ITEM_NAME_COLUMN].to_dict()
 
 # --------------------------------------------------------------------------
 # --- VI 챔피언 매치 데이터 로드 ---
@@ -353,7 +351,7 @@ if not most_common_vi_items_counts.empty:
     is_top_item_defensive = top_1_item_name in defensive_completed_items_list
 
     # ⭐ 최종 결과 출력 ⭐
-TOP_N = 5  # 네가 원하는 순위 개수를 여기에 설정!
+TOP_N = 10  # 네가 원하는 순위 개수를 여기에 설정!
 
 if not most_common_vi_items_counts.empty:
     print(f"\n--- [분석 결과] VI가 가장 많이 장착한 완성 아이템 TOP {TOP_N} ---")
